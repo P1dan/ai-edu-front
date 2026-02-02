@@ -1,26 +1,26 @@
-<!-- src/App.vue -->
+<!-- App.vue -->
 <template>
-  <div id="app">
-    <!-- 所有的页面内容会在这里渲染 -->
-    <router-view />
-    <!-- 全局悬浮球组件 -->
-    <!-- <FloatBall /> -->
+  <div class="app-container">
+    <LeftNavbar />
+    <div class="main-content">
+      <router-view />
+    </div>
   </div>
 </template>
 
-<script>
-import FloatBall from './components/FloatBall/index.vue'
-
-export default {
-  name: 'App',
-  components: {
-    FloatBall
-  }
-}
+<script setup>
+import LeftNavbar from './components/leftnavbar.vue'
 </script>
 
 <style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 80px; /* 侧边栏宽度 */
+  min-height: 100vh;
 }
 </style>

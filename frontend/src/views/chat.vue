@@ -5,14 +5,15 @@
     <div class="sidebar">
       <h3>历史会话</h3>
       <button @click="startNewChat">+ 新建对话</button>
-      <div
-        v-for="thread in threads"
-        :key="thread.thread_id"
-        class="session-item"
-        :class="{ active: thread.thread_id === currentThreadId }"
-        @click="loadSession(thread.thread_id)"
-      >
-        {{ thread.title || '未命名对话' }}
+      <div v-for="thread in threads" :key="thread.thread_id" class="session-item"
+        :class="{ active: thread.thread_id === currentThreadId }" @click="loadSession(thread.thread_id)">
+        <div class="session-content" @click="loadSession(thread.thread_id)">
+          {{ thread.title || '未命名对话' }}
+        </div>
+        <div class="session-actions">
+          <button @click.stop="editTitle(thread)" title="编辑标题">✏️</button>
+          <button @click.stop="deleteSession(thread.thread_id)" title="删除会话">🗑️</button>
+        </div>
       </div>
     </div>
 
@@ -25,12 +26,8 @@
         </div>
       </div>
       <div class="input-area">
-        <textarea
-          v-model="inputText"
-          @keydown.enter.exact.prevent="sendMessage"
-          placeholder="输入消息..."
-          :disabled="isSending"
-        ></textarea>
+        <textarea v-model="inputText" @keydown.enter.exact.prevent="sendMessage" placeholder="输入消息..."
+          :disabled="isSending"></textarea>
         <button @click="sendMessage" :disabled="!inputText.trim() || isSending">
           {{ isSending ? '发送中...' : '发送' }}
         </button>
@@ -80,6 +77,54 @@ function startNewChat() {
   inputText.value = ''
 }
 
+// 编辑会话标题
+async function editTitle(thread) {
+  const newTitle = prompt('请输入新标题：', thread.title || '')
+  if (newTitle !== null && newTitle.trim() !== '') {
+    // 调用后端API更新标题
+    const res = await fetch(`${API_BASE}history_conversation/edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        thread_id: thread.thread_id,
+        title: newTitle.trim()
+      })
+    })
+
+    if (res.ok) {
+      // 更新本地数据
+      thread.title = newTitle.trim()
+    } else {
+      alert('更新标题失败')
+    }
+  }
+}
+
+// 删除会话
+async function deleteSession(threadId) {
+  if (!confirm('确定删除此会话吗？')) return
+
+  // 调用后端API删除
+  const res = await fetch(`${API_BASE}history_conversation/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ thread_id: threadId })
+  })
+
+  if (res.ok) {
+    // 从本地列表中移除
+    threads.value = threads.value.filter(t => t.thread_id !== threadId)
+
+    // 如果删除的是当前会话，清空消息区域
+    if (currentThreadId.value === threadId) {
+      currentThreadId.value = null
+      messages.value = []
+    }
+  } else {
+    alert('删除失败')
+  }
+}
+
 // ✅ 核心：流式发送消息（修复多轮对话 + 流式响应）
 async function sendMessage() {
   if (!inputText.value.trim() || isSending.value) return
@@ -102,7 +147,7 @@ async function sendMessage() {
   if (!threadId) {
     // 生成 UUID v4（无依赖，使用浏览器 crypto API）
     const generateUUID = () => {
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
         const r = Math.random() * 16 | 0
         const v = c === 'x' ? r : (r & 0x3 | 0x8)
         return v.toString(16)
@@ -183,54 +228,101 @@ onMounted(() => {
   display: flex;
   height: calc(100vh - 60px);
 }
+
 .sidebar {
   width: 250px;
   border-right: 1px solid #eee;
   padding: 16px;
   overflow-y: auto;
 }
+
 .sidebar h3 {
   margin-top: 0;
 }
+
 .session-item {
   padding: 8px;
   cursor: pointer;
   border-radius: 4px;
 }
+
 .session-item:hover {
   background: #f5f5f5;
 }
+
 .session-item.active {
   background: #e6f7ff;
   font-weight: bold;
 }
+
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
 }
+
 .messages {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
 }
+
 .message {
   margin-bottom: 12px;
   line-height: 1.5;
 }
+
 .input-area {
   display: flex;
   padding: 16px;
   border-top: 1px solid #eee;
 }
+
 .input-area textarea {
   flex: 1;
   height: 40px;
   padding: 8px;
   resize: none;
 }
+
 .input-area button {
   margin-left: 8px;
   padding: 8px 16px;
+}
+
+.session-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.session-content {
+  flex: 1;
+}
+
+.session-actions {
+  display: none;
+  /* 默认隐藏，悬停时显示 */
+  gap: 4px;
+}
+
+.session-item:hover .session-actions {
+  display: flex;
+}
+
+.session-actions button {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.session-actions button:hover {
+  background: #f0f0f0;
 }
 </style>

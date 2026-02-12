@@ -1,24 +1,34 @@
 <!-- src/views/chat.vue -->
-
-
 <template>
   <div class="chat-view">
     <div class="chat-container">
       <!-- 左侧：会话列表 -->
+      <!-- 左侧：会话列表 -->
       <aside class="chat-sidebar">
+        <!-- 模板快捷入口（常驻） -->
+        <section class="template-section" aria-label="快捷模板">
+          <h4>快速开始</h4>
+          <div class="template-buttons">
+            <button class="template-btn" @click="startTemplate('ppt')">PPT 制作</button>
+            <button class="template-btn" @click="startTemplate('study_plan')">学习规划</button>
+            <button class="template-btn" @click="startTemplate('homework')">习题生成</button>
+            <button class="template-btn" @click="startTemplate('website')">网站分析</button>
+            <button class="template-btn" @click="startTemplate('document')">文档整理</button>
+            <button class="template-btn" @click="startTemplate('code')">代码生成</button>
+          </div>
+        </section>
+
+        <!-- 历史会话 -->
         <header class="sidebar-header">
           <h3>历史会话</h3>
-          <button class="new-thread-btn" @click="startNewChat">+ 新建对话</button>
+          <!-- 可选：保留一个“新建空白对话”按钮 -->
+          <button class="new-chat-btn" @click="startNewChat">+ 新建对话</button>
         </header>
 
         <section class="thread-list" aria-label="会话列表">
-          <div
-            v-for="thread in threads"
-            :key="thread.thread_id"
-            class="thread-item"
+          <div v-for="thread in threads" :key="thread.thread_id" class="thread-item"
             :aria-current="currentThreadId === thread.thread_id ? 'true' : 'false'"
-            @click="loadSession(thread.thread_id)"
-          >
+            @click="loadSession(thread.thread_id)">
             <div class="thread-meta">
               <div class="thread-title">{{ thread.title || '未命名对话' }}</div>
               <div class="thread-actions">
@@ -38,35 +48,30 @@
           }}</div>
         </div>
 
-        <section class="messages" ref="messagesContainer" aria-live="polite">
-          <div
-            v-for="msg in messages"
-            :key="msg.id"
-            :class="['message-bubble', msg.role === 'user' ? 'is-user' : 'is-ai']"
-          >
+        <!-- 欢迎提示面板（仅在无消息时显示） -->
+        <!-- 欢迎提示面板（仅在无消息时显示） -->
+        <div v-if="messages.length === 0" class="welcome-panel">
+          <div class="welcome-content">
+            <h3>{{ welcomeMessage }}</h3>
+          </div>
+        </div>
+
+        <!-- 消息区域（正常滚动） -->
+        <section v-else class="messages" ref="messagesContainer" aria-live="polite">
+          <div v-for="msg in messages" :key="msg.id"
+            :class="['message-bubble', msg.role === 'user' ? 'is-user' : 'is-ai']">
             <div class="message-meta">
               <strong class="message-role">{{ msg.role === 'user' ? '你' : 'AI' }}</strong>
             </div>
-            <!-- 用户消息：纯文本（防XSS） -->
             <div v-if="msg.role === 'user'" class="message-content">{{ msg.content }}</div>
-            <!-- AI消息：渲染Markdown + 高亮 -->
             <div v-else class="message-content" v-html="msg.html"></div>
           </div>
         </section>
 
         <footer class="chat-input">
-          <textarea
-            v-model="inputText"
-            @keydown.enter.exact.prevent="sendMessage"
-            placeholder="输入消息..."
-            :disabled="isSending"
-            class="input-area"
-          ></textarea>
-          <button
-            class="send-btn"
-            @click="sendMessage"
-            :disabled="!inputText.trim() || isSending"
-          >
+          <textarea v-model="inputText" @keydown.enter.exact.prevent="sendMessage" placeholder="输入消息..."
+            :disabled="isSending" class="input-area"></textarea>
+          <button class="send-btn" @click="sendMessage" :disabled="!inputText.trim() || isSending">
             {{ isSending ? '发送中...' : '发送' }}
           </button>
         </footer>
@@ -76,7 +81,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 
 // 状态
 const threads = ref([])
@@ -86,27 +91,67 @@ const inputText = ref('')
 const userId = 'user129'
 const isSending = ref(false)
 
+const templateType = ref(null) // 可选值: 'ppt', 'study_plan', 'homework', 'website', 'document', 'code'
+
+
+const welcomeMessage = ref('你好！我能帮你做什么？\n例如：帮我写一份周报、解释量子计算、生成 Python 爬虫代码...');
+
+// 在 script setup 中
+function startTemplate(type) {
+  // 清空当前状态
+  currentThreadId.value = null;
+  messages.value = [];
+  inputText.value = '';
+
+  // 设置模板类型（用于显示中间提示）
+  templateType.value = type;
+
+  // 根据模板类型设置欢迎信息
+  switch (type) {
+    case 'ppt':
+      welcomeMessage.value = '输入PPT主题帮你生成大纲，包含标题页、目录、正文和总结。';
+      break;
+    case 'study_plan':
+      welcomeMessage.value = '请输入学习计划的时间长度和目标技能或知识领域。';
+      break;
+    case 'homework':
+      welcomeMessage.value = '请输入相关知识点，我将为你生成5道练习题及其答案解析。';
+      break;
+    case 'website':
+      welcomeMessage.value = '请提供网站链接或描述，我将帮助你分析其设计思路。';
+      break;
+    case 'document':
+      welcomeMessage.value = '请提供需要整理成文档的文字内容。';
+      break;
+    case 'code':
+      welcomeMessage.value = '请输入你想要实现的功能描述，我将用Python编写相应的代码并加上注释。';
+      break;
+    default:
+      welcomeMessage.value = '你好！我能帮你做什么？\n例如：帮我写一份周报、解释量子计算、生成 Python 爬虫代码...';
+  }
+
+  // 自动聚焦输入框（可选）
+  nextTick(() => {
+    document.querySelector('.input-area')?.focus();
+  });
+}
+
 const API_BASE = 'http://localhost:8000/api/'
 
 // ========== 初始化 marked + highlight.js ==========
-// 确保 DOMPurify、marked、hljs 已加载
 if (typeof DOMPurify === 'undefined' || typeof marked === 'undefined' || typeof hljs === 'undefined') {
   console.error('请确保在 index.html 中引入 DOMPurify、marked 和 highlight.js')
 }
 
-// 配置 marked
 marked.setOptions({
   highlight: function (code, lang) {
     const language = hljs.getLanguage(lang) ? lang : 'plaintext'
     return hljs.highlight(code, { language }).value
   },
   langPrefix: 'hljs language-',
-  breaks: true // 支持\n换行
+  breaks: true
 })
 
-/**
- * 将 Markdown 转为安全的 HTML（带高亮）
- */
 function renderMarkdown(md) {
   const dirtyHtml = marked.parse(md || '')
   return DOMPurify.sanitize(dirtyHtml)
@@ -136,8 +181,13 @@ function startNewChat() {
   currentThreadId.value = null
   messages.value = []
   inputText.value = ''
+  templateType.value = null
+  welcomeMessage.value = '你好！我能帮你做什么？\n例如：帮我写一份周报、解释量子计算、生成 Python 爬虫代码...'
 }
 
+
+
+// ========== 其他逻辑 ==========
 async function editTitle(thread) {
   const newTitle = prompt('请输入新标题：', thread.title || '')
   if (newTitle !== null && newTitle.trim() !== '') {
@@ -172,7 +222,6 @@ async function deleteSession(threadId) {
   }
 }
 
-// ========== 消息流处理 ==========
 function scrollToBottom() {
   const container = document.querySelector('.messages')
   if (container) {
@@ -187,7 +236,6 @@ async function sendMessage() {
   inputText.value = ''
   isSending.value = true
 
-  // 添加用户消息（纯文本）
   messages.value.push({
     id: `user-${Date.now()}`,
     role: 'user',
@@ -195,7 +243,6 @@ async function sendMessage() {
   })
   nextTick(() => scrollToBottom())
 
-  // 生成 thread_id（如需要）
   let threadId = currentThreadId.value
   if (!threadId) {
     const generateUUID = () =>
@@ -210,7 +257,6 @@ async function sendMessage() {
     threads.value.unshift({ thread_id: threadId, title })
   }
 
-  // 添加 AI 占位消息（初始为空）
   const aiMsg = {
     id: `ai-${Date.now()}`,
     role: 'assistant',
@@ -220,43 +266,38 @@ async function sendMessage() {
   messages.value.push(aiMsg)
   const aiIndex = messages.value.length - 1
 
-  // 发起 SSE 请求
   const params = new URLSearchParams({ user_id: userId, message: content, thread_id: threadId })
   const eventSource = new EventSource(`${API_BASE}chat_conversation/stream?${params}`)
 
   eventSource.onmessage = (event) => {
-  if (event.data === '[DONE]') {
-    eventSource.close()
-    isSending.value = false
-    return
-  }
-
-  try {
-    const data = JSON.parse(event.data)
-    const currentMsg = messages.value[aiIndex]
-
-    // 创建新消息对象（关键！）
-    const updatedMsg = {
-      ...currentMsg,
-      content: currentMsg.content + data.content,
-      html: renderMarkdown(currentMsg.content + data.content)
+    if (event.data === '[DONE]') {
+      eventSource.close()
+      isSending.value = false
+      return
     }
 
-    messages.value[aiIndex] = updatedMsg // ✅ 触发响应式更新
-
-    nextTick(() => scrollToBottom())
-  } catch (e) {
-    console.error('解析失败:', e)
-    const currentMsg = messages.value[aiIndex]
-    const updatedMsg = {
-      ...currentMsg,
-      content: currentMsg.content + event.data,
-      html: renderMarkdown(currentMsg.content + event.data)
+    try {
+      const data = JSON.parse(event.data)
+      const currentMsg = messages.value[aiIndex]
+      const updatedMsg = {
+        ...currentMsg,
+        content: currentMsg.content + data.content,
+        html: renderMarkdown(currentMsg.content + data.content)
+      }
+      messages.value[aiIndex] = updatedMsg
+      nextTick(() => scrollToBottom())
+    } catch (e) {
+      console.error('解析失败:', e)
+      const currentMsg = messages.value[aiIndex]
+      const updatedMsg = {
+        ...currentMsg,
+        content: currentMsg.content + event.data,
+        html: renderMarkdown(currentMsg.content + event.data)
+      }
+      messages.value[aiIndex] = updatedMsg
+      nextTick(() => scrollToBottom())
     }
-    messages.value[aiIndex] = updatedMsg
-    nextTick(() => scrollToBottom())
   }
-}
 
   eventSource.onerror = (err) => {
     console.error('SSE 连接出错:', err)
@@ -276,52 +317,123 @@ onMounted(() => {
 <style scoped>
 .chat-container {
   display: flex;
-  height: calc(100vh - 80px);
-  gap: 16px;
-  padding: 16px;
+  height: 100vh;
+  gap: 20px;
+  padding: 20px;
   box-sizing: border-box;
 }
 
+/* ========== 侧边栏 ========== */
 .chat-sidebar {
-  width: 280px;
-  background: var(--sidebar-bg, #f7f8fa);
-  border-radius: 8px;
-  padding: 12px;
+  width: 260px;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.template-section h4 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.template-buttons {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.template-btn {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.template-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
 }
 
 .sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
-.new-thread-btn {
-  background: #2563eb;
-  color: #fff;
+.sidebar-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.new-chat-btn {
+  background: #3b82f6;
+  color: white;
   border: none;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background 0.2s;
+}
+
+.new-chat-btn:hover {
+  background: #2563eb;
 }
 
 .thread-list {
-  overflow: auto;
+  overflow-y: auto;
   flex: 1;
+  padding-right: 4px;
+}
+
+/* 滚动条美化（仅 WebKit） */
+.thread-list::-webkit-scrollbar {
+  width: 6px;
+}
+.thread-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thread-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.thread-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .thread-item {
-  padding: 8px;
-  border-radius: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
+  transition: background 0.15s;
 }
 
-.thread-item[aria-current="true"] {
-  background: #eef2ff;
+.thread-item:hover {
+  background: #f1f5f9;
+}
+
+.thread-item[aria-current='true'] {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .thread-meta {
@@ -333,127 +445,175 @@ onMounted(() => {
 
 .thread-title {
   font-size: 14px;
-  color: #111827;
+  color: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 500;
 }
 
 .thread-actions .icon-btn {
   background: transparent;
   border: none;
   cursor: pointer;
-  margin-left: 6px;
+  margin-left: 8px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  font-size: 14px;
 }
 
+.thread-item:hover .icon-btn {
+  opacity: 1;
+}
+
+/* ========== 主聊天区 ========== */
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-radius: 8px;
+  background: white;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .chat-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid #eee;
-  background: linear-gradient(180deg, #fff, #fbfdff);
+  padding: 14px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
 }
 
 .chat-title {
   font-weight: 600;
-  color: #0f172a;
+  font-size: 16px;
+  color: #1e293b;
+  line-height: 1.4;
 }
 
+/* ========== 消息区域 ========== */
 .messages {
   flex: 1;
-  padding: 16px;
-  overflow: auto;
+  padding: 20px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: linear-gradient(180deg, #ffffff, #fbfdff);
+  gap: 16px;
+  background: #fafafa;
+}
+
+.messages::-webkit-scrollbar {
+  width: 6px;
+}
+.messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.messages::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 3px;
 }
 
 .message-bubble {
-  max-width: 70%;
-  padding: 10px 12px;
-  border-radius: 12px;
-  line-height: 1.5;
+  max-width: 75%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  line-height: 1.55;
   word-break: break-word;
+  position: relative;
 }
 
 .message-bubble.is-ai {
   align-self: flex-start;
-  background: #f3f4f6;
-  color: #111827;
+  background: #f1f5f9;
+  color: #1e293b;
+  border-bottom-left-radius: 4px;
 }
 
 .message-bubble.is-user {
   align-self: flex-end;
-  background: #2563eb;
-  color: #fff;
+  background: #3b82f6;
+  color: white;
+  border-bottom-right-radius: 4px;
 }
 
 .message-meta {
   font-size: 12px;
   margin-bottom: 6px;
-  opacity: 0.8;
+  opacity: 0.85;
+  font-weight: 500;
 }
 
+/* ========== 输入区 ========== */
 .chat-input {
   display: flex;
-  gap: 8px;
-  padding: 12px;
-  border-top: 1px solid #eee;
-  align-items: flex-end;
+  gap: 10px;
+  padding: 16px;
+  border-top: 1px solid #f1f5f9;
+  background: white;
 }
 
 .input-area {
   flex: 1;
-  min-height: 44px;
+  min-height: 48px;
   max-height: 140px;
   resize: none;
-  padding: 10px;
-  border: 1px solid #e6e9ef;
-  border-radius: 8px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
   font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-area:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .send-btn {
   background: #10b981;
-  color: #fff;
+  color: white;
   border: none;
-  padding: 8px 14px;
-  border-radius: 8px;
+  padding: 12px 20px;
+  border-radius: 10px;
   cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  min-width: 80px;
+  transition: background 0.2s, opacity 0.2s;
 }
 
-.send-btn:disabled,
-.new-thread-btn:disabled {
-  opacity: 0.6;
+.send-btn:hover:not(:disabled) {
+  background: #0da271;
+}
+
+.send-btn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-@media (max-width: 800px) {
-  .chat-container {
-    flex-direction: column;
-    height: auto;
-  }
+/* ========== 欢迎面板 ========== */
+.welcome-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: #fafafa;
+}
 
-  .chat-sidebar {
-    width: 100%;
-    order: 2;
-  }
+.welcome-content {
+  text-align: center;
+  max-width: 560px;
+  color: #64748b;
+}
 
-  .chat-main {
-    order: 1;
-  }
-
-  .message-bubble {
-    max-width: 100%;
-  }
+.welcome-content h3 {
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 16px;
+  font-size: 20px;
+  line-height: 1.4;
+  white-space: pre-wrap;
 }
 </style>

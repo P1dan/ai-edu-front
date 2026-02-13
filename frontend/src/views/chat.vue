@@ -3,7 +3,6 @@
   <div class="chat-view">
     <div class="chat-container">
       <!-- 左侧：会话列表 -->
-      <!-- 左侧：会话列表 -->
       <aside class="chat-sidebar">
         <!-- 模板快捷入口（常驻） -->
         <section class="template-section" aria-label="快捷模板">
@@ -32,8 +31,20 @@
             <div class="thread-meta">
               <div class="thread-title">{{ thread.title || '未命名对话' }}</div>
               <div class="thread-actions">
-                <button class="icon-btn" @click.stop="editTitle(thread)" title="编辑标题">✏️</button>
-                <button class="icon-btn" @click.stop="deleteSession(thread.thread_id)" title="删除会话">🗑️</button>
+                <!-- 三个点按钮 -->
+                <button class="icon-btn more-options-btn" @click.stop="toggleMenu(thread.thread_id)" title="更多操作">
+                  ⋮
+                </button>
+
+                <!-- 下拉菜单（仅当该 thread 的菜单打开时显示） -->
+                <div v-if="openMenuId === thread.thread_id" class="dropdown-menu" @click.stop>
+                  <button class="dropdown-item" @click="handleEdit(thread)">
+                    编辑标题
+                  </button>
+                  <button class="dropdown-item delete-item" @click="handleDelete(thread.thread_id)">
+                    删除会话
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -47,8 +58,6 @@
             (threads.find(t => t.thread_id === currentThreadId)?.title) || '新对话'
           }}</div>
         </div>
-
-        <!-- 欢迎提示面板（仅在无消息时显示） -->
         <!-- 欢迎提示面板（仅在无消息时显示） -->
         <div v-if="messages.length === 0" class="welcome-panel">
           <div class="welcome-content">
@@ -81,16 +90,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, nextTick, onUnmounted } from 'vue'
 
 // 状态
 const threads = ref([])
 const messages = ref([])
 const currentThreadId = ref(null)
+const openMenuId = ref(null) // 当前打开菜单的 thread_id
 const inputText = ref('')
 const userId = 'user129'
 const isSending = ref(false)
-
+const agentName = ref('rag_agent') // agent的名字，作为聊天的参数，先默认用这个测试
 const templateType = ref(null) // 可选值: 'ppt', 'study_plan', 'homework', 'website', 'document', 'code'
 
 
@@ -110,24 +120,31 @@ function startTemplate(type) {
   switch (type) {
     case 'ppt':
       welcomeMessage.value = '输入PPT主题帮你生成大纲，包含标题页、目录、正文和总结。';
+      agentName.value = 'ppt_agent'
       break;
     case 'study_plan':
       welcomeMessage.value = '请输入学习计划的时间长度和目标技能或知识领域。';
+      agentName.value = 'plan_agent'
       break;
     case 'homework':
       welcomeMessage.value = '请输入相关知识点，我将为你生成5道练习题及其答案解析。';
+      agentName.value = 'homework_agent'
       break;
     case 'website':
       welcomeMessage.value = '请提供网站链接或描述，我将帮助你分析其设计思路。';
+      agentName.value = 'website_agent'
       break;
     case 'document':
       welcomeMessage.value = '请提供需要整理成文档的文字内容。';
+      agentName.value = 'document_agent'
       break;
     case 'code':
       welcomeMessage.value = '请输入你想要实现的功能描述，我将用Python编写相应的代码并加上注释。';
+      agentName.value = 'code_agent'
       break;
     default:
       welcomeMessage.value = '你好！我能帮你做什么？\n例如：帮我写一份周报、解释量子计算、生成 Python 爬虫代码...';
+      agentName.value = 'rag_agent'
   }
 
   // 自动聚焦输入框（可选）
@@ -188,38 +205,61 @@ function startNewChat() {
 
 
 // ========== 其他逻辑 ==========
-async function editTitle(thread) {
+
+// 切换菜单显隐
+function toggleMenu(threadId) {
+  // 如果当前点击的是已打开的菜单，则关闭；否则打开
+  openMenuId.value = openMenuId.value === threadId ? null : threadId
+}
+
+// 处理编辑（可复用原逻辑）
+function handleEdit(thread) {
+  openMenuId.value = null // 先关闭菜单
   const newTitle = prompt('请输入新标题：', thread.title || '')
   if (newTitle !== null && newTitle.trim() !== '') {
-    const res = await fetch(`${API_BASE}history_conversation/edit`, {
+    fetch(`${API_BASE}history_conversation/edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ thread_id: thread.thread_id, title: newTitle.trim() })
     })
-    if (res.ok) {
-      thread.title = newTitle.trim()
-    } else {
-      alert('更新标题失败')
-    }
+      .then(res => {
+        if (res.ok) {
+          thread.title = newTitle.trim()
+        } else {
+          alert('更新标题失败')
+        }
+      })
+      .catch(err => {
+        console.error('编辑失败:', err)
+        alert('网络错误，请重试')
+      })
   }
 }
 
-async function deleteSession(threadId) {
+// 处理删除（可复用原逻辑）
+function handleDelete(threadId) {
+  openMenuId.value = null // 先关闭菜单
   if (!confirm('确定删除此会话吗？')) return
-  const res = await fetch(`${API_BASE}history_conversation/delete`, {
+  fetch(`${API_BASE}history_conversation/delete`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ thread_id: threadId })
   })
-  if (res.ok) {
-    threads.value = threads.value.filter(t => t.thread_id !== threadId)
-    if (currentThreadId.value === threadId) {
-      currentThreadId.value = null
-      messages.value = []
-    }
-  } else {
-    alert('删除失败')
-  }
+    .then(res => {
+      if (res.ok) {
+        threads.value = threads.value.filter(t => t.thread_id !== threadId)
+        if (currentThreadId.value === threadId) {
+          currentThreadId.value = null
+          messages.value = []
+        }
+      } else {
+        alert('删除失败')
+      }
+    })
+    .catch(err => {
+      console.error('删除失败:', err)
+      alert('网络错误，请重试')
+    })
 }
 
 function scrollToBottom() {
@@ -245,6 +285,7 @@ async function sendMessage() {
 
   let threadId = currentThreadId.value
   if (!threadId) {
+    // 若没有线程ID就由前端生成一个
     const generateUUID = () =>
       'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
         const r = (Math.random() * 16) | 0
@@ -265,8 +306,7 @@ async function sendMessage() {
   }
   messages.value.push(aiMsg)
   const aiIndex = messages.value.length - 1
-
-  const params = new URLSearchParams({ user_id: userId, message: content, thread_id: threadId })
+  const params = new URLSearchParams({ user_id: userId, message: content, thread_id: threadId, agent_name: agentName.value })
   const eventSource = new EventSource(`${API_BASE}chat_conversation/stream?${params}`)
 
   eventSource.onmessage = (event) => {
@@ -311,6 +351,18 @@ async function sendMessage() {
 
 onMounted(() => {
   fetchSessions()
+
+  // 点击外部关闭菜单
+  const handleClickOutside = () => {
+    openMenuId.value = null
+  }
+
+  document.addEventListener('click', handleClickOutside)
+
+  // 组件卸载时移除监听
+  onUnmounted(() => {
+    document.removeEventListener('click', handleClickOutside)
+  })
 })
 </script>
 
@@ -407,13 +459,16 @@ onMounted(() => {
 .thread-list::-webkit-scrollbar {
   width: 6px;
 }
+
 .thread-list::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .thread-list::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
 }
+
 .thread-list::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
@@ -425,6 +480,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   transition: background 0.15s;
+  position: relative;
 }
 
 .thread-item:hover {
@@ -504,9 +560,11 @@ onMounted(() => {
 .messages::-webkit-scrollbar {
   width: 6px;
 }
+
 .messages::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .messages::-webkit-scrollbar-thumb {
   background: #e2e8f0;
   border-radius: 3px;
@@ -615,5 +673,65 @@ onMounted(() => {
   font-size: 20px;
   line-height: 1.4;
   white-space: pre-wrap;
+}
+
+/* 三个点按钮 */
+.more-options-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 18px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.thread-item:hover .more-options-btn {
+  opacity: 1;
+  background: #e2e8f0;
+}
+
+/* 下拉菜单 */
+.dropdown-menu {
+  position: absolute;
+  right: 12px; /* 距离右侧边距，根据你的布局调整 */
+  top: 36px;   /* 在按钮下方 */
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  min-width: 120px;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dropdown-item:hover {
+  background: #f1f5f9;
+}
+
+.dropdown-item.delete-item {
+  color: #ef4444;
+}
+
+.dropdown-item.delete-item:hover {
+  background: #fee2e2;
 }
 </style>

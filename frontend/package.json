@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "dompurify": "^3.3.1",
+    "element-plus": "^2.13.2",
     "highlight.js": "^11.11.1",
     "marked": "^17.0.1",
     "vue": "^3.5.24",

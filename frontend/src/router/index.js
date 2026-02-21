@@ -1,13 +1,21 @@
 // src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
 import chat from '../views/chat.vue'
+import login from '../views/login.vue'
 
-// 表示访问这个接口的时候要访问哪个组件/页面
-// router/index.js
 const routes = [
-  { path: '/', redirect: '/chat' },  // 默认跳转到对话页
-  { path: '/chat', component: chat },  // 你的chat.vue
-  // { path: '/settings', component: SettingsPage }  // 需要创建
+  { 
+    path: '/', 
+    component: login,
+    meta: { hideNavbar: true }  // 注册登录页隐藏导航栏
+  },
+  { 
+    path: '/chat', 
+    component: chat,
+    meta: { hideNavbar: false }  // 聊天页显示导航栏（可以省略，因为默认就是false）
+  },
+  // 其他
+
 ]
 
 const router = createRouter({

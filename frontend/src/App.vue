@@ -1,8 +1,9 @@
 <!-- App.vue -->
 <template>
   <div class="app-container">
-    <LeftNavbar />
-    <div class="main-content">
+    <!-- 使用路由元信息控制显示 -->
+    <LeftNavbar v-if="!$route.meta.hideNavbar" />
+    <div class="main-content" :class="{ 'full-width': $route.meta.hideNavbar }">
       <router-view />
     </div>
   </div>
@@ -20,7 +21,15 @@ import LeftNavbar from './components/leftnavbar.vue'
 
 .main-content {
   flex: 1;
-  margin-left: 80px; /* 侧边栏宽度 */
   min-height: 100vh;
+  transition: margin-left 0.3s;
+}
+
+.main-content:not(.full-width) {
+  margin-left: 80px; /* 侧边栏宽度 */
+}
+
+.main-content.full-width {
+  margin-left: 0;
 }
 </style>

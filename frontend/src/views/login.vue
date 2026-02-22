@@ -68,7 +68,7 @@
         </el-form-item>
 
         <el-form-item label="验证码" :label-width="80">
-          <el-input v-model="registerForm.code" placeholder="请输入验证码" style="width: 60%;" />
+          <el-input v-model="registerForm.verify_code" placeholder="请输入验证码" style="width: 60%;" />
           <el-button
             :disabled="countdown > 0"
             @click="sendSmsCode('register')"
@@ -87,10 +87,15 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
+import request from '../utils/request'
+
+// 路由实例
+const router = useRouter()
 
 // 状态
 const isLogin = ref(true)
-const loginType = ref('password') // 'password' 或 'sms'
+const loginType = ref('password')
 const countdown = ref(0)
 
 // 表单数据
@@ -106,7 +111,7 @@ const registerForm = reactive({
   code: ''
 })
 
-// 切换登录/注册
+// 切换模式
 const toggleMode = () => {
   isLogin.value = !isLogin.value
   resetForms()
@@ -122,15 +127,13 @@ const resetForms = () => {
   loginType.value = 'password'
 }
 
-// 模拟发送验证码（实际应调用后端接口）
+// 发送验证码（模拟）
 const sendSmsCode = (type) => {
   const phone = type === 'login' ? loginForm.phone : registerForm.phone
   if (!/^1[3-9]\d{9}$/.test(phone)) {
     ElMessage.warning('请输入正确的手机号')
     return
   }
-
-  // 模拟发送成功
   ElMessage.success(`验证码已发送至 ${phone}（模拟）`)
   startCountdown()
 }
@@ -146,56 +149,74 @@ const startCountdown = () => {
   }, 1000)
 }
 
-// 登录处理
-const handleLogin = () => {
-  const { phone, password, code } = loginForm
+const handleLogin = async () => {
+  const { phone, password, verify_code } = loginForm
 
   if (!/^1[3-9]\d{9}$/.test(phone)) {
     ElMessage.error('手机号格式错误')
     return
   }
 
-  if (loginType.value === 'password') {
-    if (!password || password.length < 6) {
-      ElMessage.error('密码至少6位')
-      return
+  try {
+    let response
+
+    if (loginType.value === 'password') {
+      if (!password || password.length < 6) {
+        ElMessage.error('密码至少6位')
+        return
+      }
+      response = await request.post('/auth/login', { phone, password })
+    } else {
+      if (!verify_code) {
+        ElMessage.error('请输入验证码')
+        return
+      }
+      response = await request.post('/auth/code-login', { phone, verify_code })
     }
-    // 模拟登录
-    ElMessage.success('密码登录成功！')
-  } else {
-    if (!code) {
-      ElMessage.error('请输入验证码')
-      return
-    }
-    // 模拟验证码登录
-    ElMessage.success('验证码登录成功！')
+
+    // ✅ 假设后端返回 { token: "xxx" }
+    const { token } = response.data.data
+    localStorage.setItem('access_token', token)
+    ElMessage.success('登录成功！')
+    await router.push('/chat') // 这里是前端的路由
+  } catch (error) {
+    // 错误已在拦截器中处理，这里可不写，或做额外逻辑
+    console.error('登录失败:', error)
   }
 }
 
-// 注册处理
-const handleRegister = () => {
-  const { phone, password, code } = registerForm
+// 注册
+const handleRegister = async () => {
+  const { phone, password, verify_code } = registerForm
 
   if (!/^1[3-9]\d{9}$/.test(phone)) {
     ElMessage.error('手机号格式错误')
     return
   }
-
   if (!password || password.length < 6 || password.length > 20) {
     ElMessage.error('密码需为6-20位')
     return
   }
-
-  if (!code) {
+  if (!verify_code) {
     ElMessage.error('请输入验证码')
     return
   }
 
-  // 模拟注册
-  ElMessage.success('注册成功！')
-  isLogin.value = true
-  resetForms()
+  try {
+    const response = await request.post('/auth/register', {
+      phone,
+      password,
+      verify_code
+    })
+    const { token } = response.data.data
+    localStorage.setItem('access_token', token)
+    ElMessage.success('注册成功！')
+    await router.push('/chat')
+  } catch (error) {
+    console.error('注册失败:', error)
+  }
 }
+
 </script>
 
 <style scoped>

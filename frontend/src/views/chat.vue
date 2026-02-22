@@ -91,14 +91,13 @@
 
 <script setup>
 import { ref, onMounted, nextTick, onUnmounted } from 'vue'
-
+import request from '../utils/request'
 // 状态
 const threads = ref([])
 const messages = ref([])
 const currentThreadId = ref(null)
 const openMenuId = ref(null) // 当前打开菜单的 thread_id
 const inputText = ref('')
-const userId = 'user129'
 const isSending = ref(false)
 const agentName = ref('rag_agent') // agent的名字，作为聊天的参数，先默认用这个测试
 const templateType = ref(null) // 可选值: 'ppt', 'study_plan', 'homework', 'website', 'document', 'code'
@@ -176,22 +175,30 @@ function renderMarkdown(md) {
 
 // ========== 会话管理 ==========
 async function fetchSessions() {
-  const params = new URLSearchParams({ user_id: userId, page: '1', page_size: '20' })
-  const res = await fetch(`${API_BASE}history_conversation/threads?${params}`)
-  const data = await res.json()
-  threads.value = data.threads || []
+  try {
+    const res = await request.get('/history_conversation/threads', {
+      params: {page: '1', page_size: '20' }
+    })
+    threads.value = res.data.threads || []
+  } catch (error) {
+    console.error('获取会话失败:', error)
+  }
 }
 
 async function loadSession(threadId) {
   currentThreadId.value = threadId
-  const params = new URLSearchParams({ thread_id: threadId })
-  const res = await fetch(`${API_BASE}history_conversation/messages?${params}`)
-  const data = await res.json()
-  messages.value = (data.data?.messages || []).map(msg => ({
-    ...msg,
-    html: msg.role === 'assistant' ? renderMarkdown(msg.content) : ''
-  }))
-  nextTick(() => scrollToBottom())
+  try {
+    const res = await request.get('/history_conversation/messages', {
+      params: { thread_id: threadId }
+    })
+    messages.value = (res.data.data?.messages || []).map(msg => ({
+      ...msg,
+      html: msg.role === 'assistant' ? renderMarkdown(msg.content) : ''
+    }))
+    nextTick(() => scrollToBottom())
+  } catch (error) {
+    console.error('加载消息失败:', error)
+  }
 }
 
 function startNewChat() {
@@ -214,52 +221,31 @@ function toggleMenu(threadId) {
 
 // 处理编辑（可复用原逻辑）
 function handleEdit(thread) {
-  openMenuId.value = null // 先关闭菜单
+  openMenuId.value = null
   const newTitle = prompt('请输入新标题：', thread.title || '')
   if (newTitle !== null && newTitle.trim() !== '') {
-    fetch(`${API_BASE}history_conversation/edit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ thread_id: thread.thread_id, title: newTitle.trim() })
-    })
-      .then(res => {
-        if (res.ok) {
-          thread.title = newTitle.trim()
-        } else {
-          alert('更新标题失败')
-        }
-      })
-      .catch(err => {
-        console.error('编辑失败:', err)
-        alert('网络错误，请重试')
-      })
+    request.post('/history_conversation/edit', {
+      thread_id: thread.thread_id,
+      title: newTitle.trim()
+    }).then(() => {
+      thread.title = newTitle.trim()
+    }).catch(console.error)
   }
 }
 
 // 处理删除（可复用原逻辑）
 function handleDelete(threadId) {
-  openMenuId.value = null // 先关闭菜单
+  openMenuId.value = null
   if (!confirm('确定删除此会话吗？')) return
-  fetch(`${API_BASE}history_conversation/delete`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ thread_id: threadId })
-  })
-    .then(res => {
-      if (res.ok) {
-        threads.value = threads.value.filter(t => t.thread_id !== threadId)
-        if (currentThreadId.value === threadId) {
-          currentThreadId.value = null
-          messages.value = []
-        }
-      } else {
-        alert('删除失败')
-      }
-    })
-    .catch(err => {
-      console.error('删除失败:', err)
-      alert('网络错误，请重试')
-    })
+  request.post('/history_conversation/delete', {
+    thread_id: threadId
+  }).then(() => {
+    threads.value = threads.value.filter(t => t.thread_id !== threadId)
+    if (currentThreadId.value === threadId) {
+      currentThreadId.value = null
+      messages.value = []
+    }
+  }).catch(console.error)
 }
 
 function scrollToBottom() {
@@ -306,7 +292,9 @@ async function sendMessage() {
   }
   messages.value.push(aiMsg)
   const aiIndex = messages.value.length - 1
-  const params = new URLSearchParams({ user_id: userId, message: content, thread_id: threadId, agent_name: agentName.value })
+  const token = localStorage.getItem('access_token')
+  // sse比较特殊，用query的方式传递jwt参数
+  const params = new URLSearchParams({message: content, thread_id: threadId, agent_name: agentName.value,token: token})
   const eventSource = new EventSource(`${API_BASE}chat_conversation/stream?${params}`)
 
   eventSource.onmessage = (event) => {

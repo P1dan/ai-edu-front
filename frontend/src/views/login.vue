@@ -175,7 +175,7 @@ const handleLogin = async () => {
     }
 
     // ✅ 假设后端返回 { token: "xxx" }
-    const { token } = response.data.data
+    const { token } = response
     localStorage.setItem('access_token', token)
     ElMessage.success('登录成功！')
     await router.push('/chat') // 这里是前端的路由
@@ -208,7 +208,7 @@ const handleRegister = async () => {
       password,
       verify_code
     })
-    const { token } = response.data.data
+    const { token } = response
     localStorage.setItem('access_token', token)
     ElMessage.success('注册成功！')
     await router.push('/chat')

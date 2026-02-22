@@ -27,31 +27,41 @@ request.interceptors.request.use(
 )
 
 // 响应拦截器：统一处理错误 & 401
+// 响应拦截器：统一处理 ApiResponse 结构
 request.interceptors.response.use(
   (response) => {
-    // 如果后端返回 { code: 200, data: ... } 这种结构，可在这里统一解包
-    // 但假设你的接口直接返回 data，所以直接返回 response
-    return response
+    const res = response.data; // 后端返回的是 { success, code, message, data, timestamp }
+
+    // 如果是业务成功（注意：这里用业务 code 判断，不是 HTTP status）
+    if (res.success === true || (typeof res.code === 'number' && res.code >= 200 && res.code < 300)) {
+      // 直接返回 data，调用方拿到的就是真正的业务数据
+      return res.data;
+    } else {
+      // 业务逻辑错误，比如参数校验失败、用户不存在等
+      ElMessage.error(res.message || '操作失败');
+      // 抛出错误，让调用方 catch 处理（如果需要）
+      return Promise.reject(new Error(res.message || 'Request failed'));
+    }
   },
   (error) => {
-    const status = error.response?.status
-    const message = error.response?.data?.message || '请求失败'
+    // 网络错误、超时、HTTP 非 2xx（如 500、404）等
+    const status = error.response?.status;
+    const message = error.response?.data?.message || error.message || '网络错误';
 
     if (status === 401) {
-      // Token 无效或过期
-      ElMessage.error('登录已过期，请重新登录')
-      localStorage.removeItem('access_token')
-      router.push('/') // 跳转到登录页
+      ElMessage.error('登录已过期，请重新登录');
+      localStorage.removeItem('access_token');
+      router.push('/');
     } else if (status === 403) {
-      ElMessage.error('权限不足')
+      ElMessage.error('权限不足');
     } else if (status >= 500) {
-      ElMessage.error('服务器开小差了，请稍后再试')
+      ElMessage.error('服务器开小差了，请稍后再试');
     } else {
-      ElMessage.error(message)
+      ElMessage.error(message);
     }
 
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 
 export default request

@@ -105,6 +105,8 @@ const templateType = ref(null) // 可选值: 'ppt', 'study_plan', 'homework', 'w
 
 const welcomeMessage = ref('你好！我能帮你做什么？\n例如：帮我写一份周报、解释量子计算、生成 Python 爬虫代码...');
 
+
+
 // 在 script setup 中
 function startTemplate(type) {
   // 清空当前状态
@@ -177,9 +179,9 @@ function renderMarkdown(md) {
 async function fetchSessions() {
   try {
     const res = await request.get('/history_conversation/threads', {
-      params: {page: '1', page_size: '20' }
+      params: { page: '1', page_size: '20' }
     })
-    threads.value = res.data.threads || []
+    threads.value = res.threads || []
   } catch (error) {
     console.error('获取会话失败:', error)
   }
@@ -191,11 +193,15 @@ async function loadSession(threadId) {
     const res = await request.get('/history_conversation/messages', {
       params: { thread_id: threadId }
     })
-    messages.value = (res.data.data?.messages || []).map(msg => ({
+    messages.value = (res?.messages || []).map(msg => ({
       ...msg,
       html: msg.role === 'assistant' ? renderMarkdown(msg.content) : ''
     }))
-    nextTick(() => scrollToBottom())
+    nextTick(() => {
+      scrollToBottom()
+      hljs.highlightAll()
+    })
+
   } catch (error) {
     console.error('加载消息失败:', error)
   }
@@ -294,37 +300,50 @@ async function sendMessage() {
   const aiIndex = messages.value.length - 1
   const token = localStorage.getItem('access_token')
   // sse比较特殊，用query的方式传递jwt参数
-  const params = new URLSearchParams({message: content, thread_id: threadId, agent_name: agentName.value,token: token})
+  const params = new URLSearchParams({ message: content, thread_id: threadId, agent_name: agentName.value, token: token })
   const eventSource = new EventSource(`${API_BASE}chat_conversation/stream?${params}`)
 
-  eventSource.onmessage = (event) => {
+  eventSource.onmessage = async (event) => {
     if (event.data === '[DONE]') {
       eventSource.close()
       isSending.value = false
+      // 最后再高亮一次（确保完整）
+      await nextTick()
+      hljs.highlightAll()
       return
     }
 
     try {
       const data = JSON.parse(event.data)
       const currentMsg = messages.value[aiIndex]
+      const newContent = currentMsg.content + data.content
       const updatedMsg = {
         ...currentMsg,
-        content: currentMsg.content + data.content,
-        html: renderMarkdown(currentMsg.content + data.content)
+        content: newContent,
+        html: renderMarkdown(newContent)
       }
       messages.value[aiIndex] = updatedMsg
-      nextTick(() => scrollToBottom())
+
+      // 关键：等 DOM 更新后高亮
+      await nextTick()
+      hljs.highlightAll()
     } catch (e) {
       console.error('解析失败:', e)
+      // 同样处理错误 fallback
       const currentMsg = messages.value[aiIndex]
+      const newContent = currentMsg.content + event.data
       const updatedMsg = {
         ...currentMsg,
-        content: currentMsg.content + event.data,
-        html: renderMarkdown(currentMsg.content + event.data)
+        content: newContent,
+        html: renderMarkdown(newContent)
       }
       messages.value[aiIndex] = updatedMsg
-      nextTick(() => scrollToBottom())
+
+      await nextTick()
+      hljs.highlightAll()
     }
+
+    scrollToBottom()
   }
 
   eventSource.onerror = (err) => {
@@ -687,8 +706,10 @@ onMounted(() => {
 /* 下拉菜单 */
 .dropdown-menu {
   position: absolute;
-  right: 12px; /* 距离右侧边距，根据你的布局调整 */
-  top: 36px;   /* 在按钮下方 */
+  right: 12px;
+  /* 距离右侧边距，根据你的布局调整 */
+  top: 36px;
+  /* 在按钮下方 */
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 8px;

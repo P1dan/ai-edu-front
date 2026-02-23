@@ -69,9 +69,6 @@
         <section v-else class="messages" ref="messagesContainer" aria-live="polite">
           <div v-for="msg in messages" :key="msg.id"
             :class="['message-bubble', msg.role === 'user' ? 'is-user' : 'is-ai']">
-            <div class="message-meta">
-              <strong class="message-role">{{ msg.role === 'user' ? '你' : 'AI' }}</strong>
-            </div>
             <div v-if="msg.role === 'user'" class="message-content">{{ msg.content }}</div>
             <div v-else class="message-content" v-html="msg.html"></div>
           </div>
@@ -561,7 +558,9 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #fafafa;
+  background: #f9fafb;
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
 }
 
 .messages::-webkit-scrollbar {
@@ -579,33 +578,37 @@ onMounted(() => {
 
 .message-bubble {
   max-width: 75%;
-  padding: 12px 16px;
-  border-radius: 14px;
-  line-height: 1.55;
+  padding: 14px 18px;
+  border-radius: 16px;
+  line-height: 1.6;
   word-break: break-word;
   position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
 }
 
 .message-bubble.is-ai {
   align-self: flex-start;
-  background: #f1f5f9;
+  background: #ffffff;
   color: #1e293b;
-  border-bottom-left-radius: 4px;
+  border-bottom-left-radius: 8px;
+  border-top-right-radius: 8px;
 }
 
 .message-bubble.is-user {
   align-self: flex-end;
   background: #3b82f6;
   color: white;
-  border-bottom-right-radius: 4px;
+  border-bottom-right-radius: 8px;
+  border-top-left-radius: 8px;
 }
 
-.message-meta {
-  font-size: 12px;
-  margin-bottom: 6px;
-  opacity: 0.85;
-  font-weight: 500;
+
+.message-content {
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
 
 /* ========== 输入区 ========== */
 .chat-input {

@@ -32,4 +32,22 @@ import LeftNavbar from './components/leftnavbar.vue'
 .main-content.full-width {
   margin-left: 0;
 }
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;  /* 禁止外层滚动 */
+}
+
+/* 如果某个页面需要滚动，单独设置 */
+.scrollable-page {
+  height: 100%;
+  overflow-y: auto;
+}
 </style>

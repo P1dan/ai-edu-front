@@ -558,7 +558,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #f9fafb;
+  background: #f9fafb; /* 保留背景 */
   scrollbar-width: thin;
   scrollbar-color: #e2e8f0 transparent;
 }
@@ -593,6 +593,7 @@ onMounted(() => {
   color: #1e293b;
   border-bottom-left-radius: 8px;
   border-top-right-radius: 8px;
+  width: 600px;
 }
 
 .message-bubble.is-user {

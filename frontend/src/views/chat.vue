@@ -122,7 +122,7 @@ function startTemplate(type) {
       break;
     case 'study_plan':
       welcomeMessage.value = '请输入学习计划的时间长度和目标技能或知识领域。';
-      agentName.value = 'plan_agent'
+      agentName.value = 'learning_plan_agent'
       break;
     case 'homework':
       welcomeMessage.value = '请输入相关知识点，我将为你生成5道练习题及其答案解析。';

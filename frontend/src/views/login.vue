@@ -22,9 +22,9 @@
           <el-radio-button label="sms">验证码登录</el-radio-button>
         </el-radio-group>
 
-        <!-- 手机号 -->
-        <el-form-item label="手机号" :label-width="80">
-          <el-input v-model="loginForm.phone" placeholder="请输入手机号" />
+        <!-- 邮箱 -->
+        <el-form-item label="邮箱" :label-width="80">
+          <el-input v-model="loginForm.email" placeholder="请输入邮箱" />
         </el-form-item>
 
         <!-- 密码登录 -->
@@ -42,7 +42,7 @@
           <el-input v-model="loginForm.code" placeholder="请输入验证码" style="width: 60%;" />
           <el-button
             :disabled="countdown > 0"
-            @click="sendSmsCode('login')"
+            @click="sendEmailCode('login')"
             style="margin-left: 10px;"
           >
             {{ countdown > 0 ? `${countdown}s 后重发` : '获取验证码' }}
@@ -54,8 +54,8 @@
 
       <!-- 注册表单 -->
       <div v-else>
-        <el-form-item label="手机号" :label-width="80">
-          <el-input v-model="registerForm.phone" placeholder="请输入手机号" />
+        <el-form-item label="邮箱" :label-width="80">
+          <el-input v-model="registerForm.email" placeholder="请输入邮箱" />
         </el-form-item>
 
         <el-form-item label="密码" :label-width="80">
@@ -68,10 +68,10 @@
         </el-form-item>
 
         <el-form-item label="验证码" :label-width="80">
-          <el-input v-model="registerForm.verify_code" placeholder="请输入验证码" style="width: 60%;" />
+          <el-input v-model="registerForm.code" placeholder="请输入验证码" style="width: 60%;" />
           <el-button
             :disabled="countdown > 0"
-            @click="sendSmsCode('register')"
+            @click="sendEmailCode('register')"
             style="margin-left: 10px;"
           >
             {{ countdown > 0 ? `${countdown}s 后重发` : '获取验证码' }}
@@ -100,13 +100,13 @@ const countdown = ref(0)
 
 // 表单数据
 const loginForm = reactive({
-  phone: '',
+  email: '',
   password: '',
   code: ''
 })
 
 const registerForm = reactive({
-  phone: '',
+  email: '',
   password: '',
   code: ''
 })
@@ -118,24 +118,40 @@ const toggleMode = () => {
 }
 
 const resetForms = () => {
-  loginForm.phone = ''
+  loginForm.email = ''
   loginForm.password = ''
   loginForm.code = ''
-  registerForm.phone = ''
+  registerForm.email = ''
   registerForm.password = ''
   registerForm.code = ''
   loginType.value = 'password'
 }
 
-// 发送验证码（模拟）
-const sendSmsCode = (type) => {
-  const phone = type === 'login' ? loginForm.phone : registerForm.phone
-  if (!/^1[3-9]\d{9}$/.test(phone)) {
-    ElMessage.warning('请输入正确的手机号')
+// 邮箱格式验证
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+// 发送验证码（GET请求）
+const sendEmailCode = async (type) => {
+  const email = type === 'login' ? loginForm.email : registerForm.email
+  if (!validateEmail(email)) {
+    ElMessage.warning('请输入正确的邮箱格式')
     return
   }
-  ElMessage.success(`验证码已发送至 ${phone}（模拟）`)
-  startCountdown()
+
+  try {
+    // 调用获取验证码接口 - GET方式，参数通过params传递
+    await request.get('/auth/get-code', {
+      params: { email }
+    })
+    ElMessage.success(`验证码已发送至 ${email}`)
+    startCountdown()
+  } catch (error) {
+    // 错误已在拦截器中处理，这里可不做额外处理
+    console.error('发送验证码失败:', error)
+  }
 }
 
 const startCountdown = () => {
@@ -150,10 +166,10 @@ const startCountdown = () => {
 }
 
 const handleLogin = async () => {
-  const { phone, password, verify_code } = loginForm
+  const { email, password, code } = loginForm
 
-  if (!/^1[3-9]\d{9}$/.test(phone)) {
-    ElMessage.error('手机号格式错误')
+  if (!validateEmail(email)) {
+    ElMessage.error('邮箱格式错误')
     return
   }
 
@@ -165,58 +181,55 @@ const handleLogin = async () => {
         ElMessage.error('密码至少6位')
         return
       }
-      response = await request.post('/auth/login', { phone, password })
+      response = await request.post('/auth/login', { email, password })
     } else {
-      if (!verify_code) {
+      if (!code) {
         ElMessage.error('请输入验证码')
         return
       }
-      response = await request.post('/auth/code-login', { phone, verify_code })
+      response = await request.post('/auth/code-login', { email, code })
     }
 
     // ✅ 假设后端返回 { token: "xxx" }
     const { token } = response
     localStorage.setItem('access_token', token)
     ElMessage.success('登录成功！')
-    await router.push('/chat') // 这里是前端的路由
+    await router.push('/chat')
   } catch (error) {
-    // 错误已在拦截器中处理，这里可不写，或做额外逻辑
     console.error('登录失败:', error)
   }
 }
 
 // 注册
 const handleRegister = async () => {
-  const { phone, password, verify_code } = registerForm
+  const { email, password, code } = registerForm
 
-  if (!/^1[3-9]\d{9}$/.test(phone)) {
-    ElMessage.error('手机号格式错误')
+  if (!validateEmail(email)) {
+    ElMessage.error('邮箱格式错误')
     return
   }
   if (!password || password.length < 6 || password.length > 20) {
     ElMessage.error('密码需为6-20位')
     return
   }
-  if (!verify_code) {
+  if (!code) {
     ElMessage.error('请输入验证码')
     return
   }
 
   try {
     const response = await request.post('/auth/register', {
-      phone,
+      email,
       password,
-      verify_code
+      code
     })
     const { token } = response
     localStorage.setItem('access_token', token)
     ElMessage.success('注册成功！')
-    await router.push('/chat')
   } catch (error) {
     console.error('注册失败:', error)
   }
 }
-
 </script>
 
 <style scoped>

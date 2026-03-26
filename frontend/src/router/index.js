@@ -2,19 +2,24 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import chat from '../views/chat.vue'
 import login from '../views/login.vue'
+import settings from '../views/settings.vue'
 
 const routes = [
-  { 
-    path: '/', 
+  {
+    path: '/',
     component: login,
     meta: { hideNavbar: true }  // 注册登录页隐藏导航栏
   },
-  { 
-    path: '/chat', 
+  {
+    path: '/chat',
     component: chat,
     meta: { hideNavbar: false }  // 聊天页显示导航栏（可以省略，因为默认就是false）
   },
-  // 其他
+  {
+    path: '/settings',
+    component: settings,
+    meta: { hideNavbar: false }
+  }
 
 ]
 

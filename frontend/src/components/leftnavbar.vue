@@ -21,7 +21,7 @@
         :class="{ active: currentRoute === '/tools' }"
         @click="goToTools"
       >
-        工具
+        其他
       </div>
       <div 
         class="panel-item"

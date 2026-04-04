@@ -194,7 +194,7 @@ const handleLogin = async () => {
     const { token } = response
     localStorage.setItem('access_token', token)
     ElMessage.success('登录成功！')
-    await router.push('/chat')
+    await router.push('/index')
   } catch (error) {
     console.error('登录失败:', error)
   }

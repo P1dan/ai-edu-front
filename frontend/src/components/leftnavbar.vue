@@ -11,17 +11,17 @@
     <div class="nav-panel">
       <div 
         class="panel-item"
-        :class="{ active: currentRoute === '/chat' }"
-        @click="goToChat"
+        :class="{ active: currentRoute === '/index' }"
+        @click="goToIndex"
       >
-        对话
+        主页
       </div>
       <div 
         class="panel-item"
-        :class="{ active: currentRoute === '/tools' }"
-        @click="goToTools"
+        :class="{ active: currentRoute === '/agents' }"
+        @click="goToAgents"
       >
-        其他
+        发现
       </div>
       <div 
         class="panel-item"
@@ -51,8 +51,8 @@ const router = useRouter()
 const currentRoute = computed(() => route.path)
 
 // 跳转方法
-const goToChat = () => router.push('/chat')
-const goToTools = () => router.push('/tools')
+const goToIndex = () => router.push('/index')
+const goToAgents= () => router.push('/agents')
 const goToSettings = () => router.push('/settings')
 </script>
 

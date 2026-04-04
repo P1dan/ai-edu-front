@@ -4,19 +4,6 @@
     <div class="chat-container">
       <!-- 左侧：会话列表 -->
       <aside class="chat-sidebar">
-        <!-- 模板快捷入口（常驻） -->
-        <section class="template-section" aria-label="快捷模板">
-          <h4>快速开始</h4>
-          <div class="template-buttons">
-            <button class="template-btn" @click="startTemplate('ppt')">PPT 制作</button>
-            <button class="template-btn" @click="startTemplate('study_plan')">学习规划</button>
-            <button class="template-btn" @click="startTemplate('homework')">习题生成</button>
-            <button class="template-btn" @click="startTemplate('website')">网站分析</button>
-            <button class="template-btn" @click="startTemplate('document')">文档整理</button>
-            <button class="template-btn" @click="startTemplate('code')">代码生成</button>
-          </div>
-        </section>
-
         <!-- 历史会话 -->
         <header class="sidebar-header">
           <h3>历史会话</h3>
@@ -97,59 +84,9 @@ const openMenuId = ref(null) // 当前打开菜单的 thread_id
 const inputText = ref('')
 const isSending = ref(false)
 const agentName = ref('rag_agent') // agent的名字，作为聊天的参数，先默认用这个测试
-const templateType = ref(null) // 可选值: 'ppt', 'study_plan', 'homework', 'website', 'document', 'code'
-
 
 const welcomeMessage = ref('你好！我能帮你做什么？\n例如：帮我写一份周报、解释量子计算、生成 Python 爬虫代码...');
 
-
-
-// 在 script setup 中
-function startTemplate(type) {
-  // 清空当前状态
-  currentThreadId.value = null;
-  messages.value = [];
-  inputText.value = '';
-
-  // 设置模板类型（用于显示中间提示）
-  templateType.value = type;
-
-  // 根据模板类型设置欢迎信息
-  switch (type) {
-    case 'ppt':
-      welcomeMessage.value = '输入PPT主题帮你生成大纲，包含标题页、目录、正文和总结。';
-      agentName.value = 'ppt_agent'
-      break;
-    case 'study_plan':
-      welcomeMessage.value = '请输入学习计划的时间长度和目标技能或知识领域。';
-      agentName.value = 'learning_plan_agent'
-      break;
-    case 'homework':
-      welcomeMessage.value = '请输入相关知识点，我将为你生成5道练习题及其答案解析。';
-      agentName.value = 'homework_agent'
-      break;
-    case 'website':
-      welcomeMessage.value = '请提供网站链接或描述，我将帮助你分析其设计思路。';
-      agentName.value = 'website_agent'
-      break;
-    case 'document':
-      welcomeMessage.value = '请提供需要整理成文档的文字内容。';
-      agentName.value = 'document_agent'
-      break;
-    case 'code':
-      welcomeMessage.value = '请输入你想要实现的功能描述，我将用Python编写相应的代码并加上注释。';
-      agentName.value = 'code_agent'
-      break;
-    default:
-      welcomeMessage.value = '你好！我能帮你做什么？\n例如：帮我写一份周报、解释量子计算、生成 Python 爬虫代码...';
-      agentName.value = 'rag_agent'
-  }
-
-  // 自动聚焦输入框（可选）
-  nextTick(() => {
-    document.querySelector('.input-area')?.focus();
-  });
-}
 
 const API_BASE = 'http://localhost:8000/api/'
 
@@ -208,7 +145,6 @@ function startNewChat() {
   currentThreadId.value = null
   messages.value = []
   inputText.value = ''
-  templateType.value = null
   welcomeMessage.value = '你好！我能帮你做什么？\n例如：帮我写一份周报、解释量子计算、生成 Python 爬虫代码...'
 }
 
@@ -371,9 +307,16 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.chat-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .chat-container {
   display: flex;
-  height: 100vh;
+  height: 100%;
+  min-height: 680px;
   gap: 20px;
   padding: 20px;
   box-sizing: border-box;
@@ -387,42 +330,11 @@ onMounted(() => {
   padding: 16px;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
 }
 
-.template-section h4 {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: #64748b;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
 
-.template-buttons {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.template-btn {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px 12px;
-  text-align: left;
-  font-size: 13px;
-  color: #334155;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: 500;
-}
-
-.template-btn:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  transform: translateY(-1px);
-}
 
 .sidebar-header {
   display: flex;
@@ -531,6 +443,8 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  height: 100%;
   background: white;
   border-radius: 12px;
   overflow: hidden;
@@ -558,7 +472,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #f9fafb; /* 保留背景 */
+  background: #f9fafb;
   scrollbar-width: thin;
   scrollbar-color: #e2e8f0 transparent;
 }
@@ -593,7 +507,8 @@ onMounted(() => {
   color: #1e293b;
   border-bottom-left-radius: 8px;
   border-top-right-radius: 8px;
-  width: 600px;
+  max-width: 68%;
+  width: auto;
 }
 
 .message-bubble.is-user {

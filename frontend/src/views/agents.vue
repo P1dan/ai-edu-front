@@ -1,16 +1,30 @@
 <template>
   <div class="agents-page scrollable-page">
     <div class="agents-layout">
-      <aside class="agents-menu">
-        <div
-          v-for="agent in agents"
-          :key="agent.id"
-          class="agent-menu-item"
-          :class="{ active: currentAgentId === agent.id }"
-          @click="selectAgent(agent.id)">
-          <div class="agent-title">{{ agent.title }}</div>
-          <div class="agent-desc">{{ agent.description }}</div>
-        </div>
+      <aside class="agents-sidebar">
+        <nav class="agents-nav" aria-label="智能体选择">
+          <button
+            v-for="agent in agents"
+            :key="agent.id"
+            type="button"
+            class="agent-nav-item"
+            :class="{ active: currentAgentId === agent.id }"
+            @click="selectAgent(agent.id)"
+          >
+            <el-icon class="agent-nav-item__icon">
+              <component :is="agent.icon" />
+            </el-icon>
+            <div class="agent-nav-item__body">
+              <span class="agent-nav-item__title">{{ agent.title }}</span>
+              <span
+                v-show="currentAgentId === agent.id"
+                class="agent-nav-item__desc"
+              >
+                {{ agent.description }}
+              </span>
+            </div>
+          </button>
+        </nav>
       </aside>
 
       <main class="agents-content">
@@ -22,6 +36,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { ChatDotRound, MagicStick, Guide, Document } from '@element-plus/icons-vue'
 import ChatAgent from '../agents/chat.vue'
 import RecommendAgent from '../agents/recommend.vue'
 import LearningPlanAgent from '../agents/learningplan.vue'
@@ -32,26 +47,30 @@ const currentAgentId = ref('qa')
 const agents = [
   {
     id: 'qa',
-    title: 'AI智能问答',
+    title: 'AI 智能问答',
     description: '快速获取问题答案、知识解析和学习建议。',
+    icon: ChatDotRound,
     component: ChatAgent
   },
   {
     id: 'recommend',
     title: '个性化推荐',
-    description: '基于你的学习画像推荐课程与练习内容。',
+    description: '基于学习画像推荐课程与练习内容。',
+    icon: MagicStick,
     component: RecommendAgent
   },
   {
     id: 'learningplan',
     title: '学习路径规划',
-    description: '生成定制化学习计划，帮助你系统化进步。',
+    description: '生成定制化学习计划，系统化进步。',
+    icon: Guide,
     component: LearningPlanAgent
   },
   {
     id: 'ppt',
-    title: 'AI PPT生成',
-    description: '自动生成教学或学习汇报所需幻灯片内容。',
+    title: 'AI PPT 生成',
+    description: '自动生成教学或汇报所需幻灯片内容。',
+    icon: Document,
     component: PptAgent
   }
 ]
@@ -65,54 +84,114 @@ const selectAgent = (id) => {
 
 <style scoped>
 .agents-page {
-  padding: 24px;
+  padding: 20px 24px;
   min-height: 100vh;
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background: #f5f7fa;
+  box-sizing: border-box;
 }
 
 .agents-layout {
   display: flex;
-  gap: 20px;
-  min-height: calc(100vh - 48px);
+  gap: 16px;
+  min-height: 0;
+  flex: 1;
   align-items: stretch;
-  height: 100%;
 }
 
-.agents-menu {
-  min-width: 260px;
+.agents-sidebar {
+  width: 228px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
 }
 
-.agent-menu-item {
-  padding: 18px 16px;
-  border-radius: 16px;
-  background: #f7f9ff;
+.agents-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.agent-nav-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  text-align: left;
+  font: inherit;
+  color: #909399;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
-.agent-menu-item:hover {
-  transform: translateX(2px);
-  background: #eef2ff;
+.agent-nav-item:hover {
+  background: rgba(64, 158, 255, 0.06);
+  color: #606266;
 }
 
-.agent-menu-item.active {
-  border: 1px solid #4f6cff;
-  background: #ffffff;
+.agent-nav-item:hover .agent-nav-item__icon {
+  color: #409eff;
 }
 
-.agent-title {
-  font-weight: 700;
-  margin-bottom: 6px;
+.agent-nav-item.active {
+  background: #ecf5ff;
+  color: #409eff;
 }
 
-.agent-desc {
-  color: #6d7d96;
+.agent-nav-item.active .agent-nav-item__icon {
+  color: #409eff;
+}
+
+.agent-nav-item__icon {
+  flex-shrink: 0;
+  font-size: 20px;
+  margin-top: 1px;
+  color: inherit;
+  transition: color 0.2s ease;
+}
+
+.agent-nav-item__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-nav-item__title {
   font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: inherit;
+}
+
+.agent-nav-item.active .agent-nav-item__title {
+  font-weight: 600;
+  color: #409eff;
+}
+
+.agent-nav-item:not(.active) .agent-nav-item__title {
+  color: #606266;
+}
+
+.agent-nav-item__desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #909399;
+  font-weight: 400;
+}
+
+.agent-nav-item.active .agent-nav-item__desc {
+  color: #79bbff;
 }
 
 .agents-content {
@@ -120,9 +199,10 @@ const selectAgent = (id) => {
   min-height: 0;
   height: 100%;
   background: #ffffff;
-  border-radius: 24px;
+  border-radius: 16px;
   padding: 18px;
-  box-shadow: 0 10px 32px rgba(53, 87, 170, 0.08);
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
 }
@@ -132,12 +212,24 @@ const selectAgent = (id) => {
   min-height: 0;
 }
 
-.agent-menu-item {
-  padding: 18px 16px;
-  border-radius: 16px;
-  background: #f7f9ff;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-height: 96px;
+@media (max-width: 720px) {
+  .agents-layout {
+    flex-direction: column;
+  }
+
+  .agents-sidebar {
+    width: 100%;
+  }
+
+  .agents-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .agent-nav-item {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 140px;
+  }
 }
 </style>

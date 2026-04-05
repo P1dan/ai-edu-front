@@ -131,7 +131,8 @@ marked.setOptions({
     return hljs.highlight(code, { language }).value
   },
   langPrefix: 'hljs language-',
-  breaks: true
+  breaks: true,
+  strikethrough: false
 })
 
 function renderMarkdown(md) {
@@ -299,8 +300,8 @@ async function sendMessage() {
   const aiMsg = {
     id: `ai-${Date.now()}`,
     role: 'assistant',
-    content: 'AI回答中',
-    html: renderMarkdown('AI回答中')
+    content: '',
+    html: renderMarkdown('')
   }
   messages.value.push(aiMsg)
   const aiIndex = messages.value.length - 1

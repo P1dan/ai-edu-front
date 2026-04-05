@@ -70,11 +70,36 @@
         </footer>
       </main>
     </div>
+
+    <!-- 删除确认对话框 -->
+    <div v-if="showDeleteDialog" class="modal-overlay" @click="showDeleteDialog = false">
+      <div class="modal-content" @click.stop>
+        <h3>确认删除</h3>
+        <p>确定删除此会话吗？</p>
+        <div class="modal-actions">
+          <button class="cancel-btn" @click="showDeleteDialog = false">取消</button>
+          <button class="confirm-btn" @click="confirmDelete">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 重命名对话框 -->
+    <div v-if="showRenameDialog" class="modal-overlay" @click="showRenameDialog = false">
+      <div class="modal-content" @click.stop>
+        <h3>编辑标题</h3>
+        <input v-model="newTitle" class="title-input" placeholder="请输入新标题" @keydown.enter="confirmRename" />
+        <div class="modal-actions">
+          <button class="cancel-btn" @click="showRenameDialog = false">取消</button>
+          <button class="confirm-btn" @click="confirmRename">确定</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, onMounted, nextTick, onUnmounted, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import request from '../utils/request'
 // 状态
 const threads = ref([])
@@ -83,6 +108,11 @@ const currentThreadId = ref(null)
 const openMenuId = ref(null) // 当前打开菜单的 thread_id
 const inputText = ref('')
 const isSending = ref(false)
+const showDeleteDialog = ref(false)
+const showRenameDialog = ref(false)
+const deleteThreadId = ref(null)
+const renameThread = ref(null)
+const newTitle = ref('')
 const agentName = ref('rag_agent') // agent的名字，作为聊天的参数，先默认用这个测试
 
 const welcomeMessage = ref('你好！我能帮你做什么？\n例如：帮我写一份周报、解释量子计算、生成 Python 爬虫代码...');
@@ -108,6 +138,13 @@ function renderMarkdown(md) {
   const dirtyHtml = marked.parse(md || '')
   return DOMPurify.sanitize(dirtyHtml)
 }
+
+watch(messages, async () => {
+  await nextTick()
+  if (typeof hljs !== 'undefined') {
+    hljs.highlightAll()
+  }
+})
 
 // ========== 会话管理 ==========
 async function fetchSessions() {
@@ -145,6 +182,7 @@ function startNewChat() {
   currentThreadId.value = null
   messages.value = []
   inputText.value = ''
+  isSending.value = false  // 重置发送状态，允许在新会话中发送消息
   welcomeMessage.value = '你好！我能帮你做什么？\n例如：帮我写一份周报、解释量子计算、生成 Python 爬虫代码...'
 }
 
@@ -161,21 +199,28 @@ function toggleMenu(threadId) {
 // 处理编辑（可复用原逻辑）
 function handleEdit(thread) {
   openMenuId.value = null
-  const newTitle = prompt('请输入新标题：', thread.title || '')
-  if (newTitle !== null && newTitle.trim() !== '') {
-    request.post('/history_conversation/edit', {
-      thread_id: thread.thread_id,
-      title: newTitle.trim()
-    }).then(() => {
-      thread.title = newTitle.trim()
-    }).catch(console.error)
-  }
+  renameThread.value = thread
+  newTitle.value = thread.title || ''
+  showRenameDialog.value = true
 }
 
 // 处理删除（可复用原逻辑）
 function handleDelete(threadId) {
   openMenuId.value = null
-  if (!confirm('确定删除此会话吗？')) return
+  deleteThreadId.value = threadId
+  showDeleteDialog.value = true
+}
+
+function confirmDelete() {
+  if (!deleteThreadId.value) {
+    showDeleteDialog.value = false
+    return
+  }
+
+  const threadId = deleteThreadId.value
+  showDeleteDialog.value = false
+  deleteThreadId.value = null
+
   request.post('/history_conversation/delete', {
     thread_id: threadId
   }).then(() => {
@@ -184,14 +229,42 @@ function handleDelete(threadId) {
       currentThreadId.value = null
       messages.value = []
     }
-  }).catch(console.error)
+    fetchSessions()
+    ElMessage.success('删除成功')
+  }).catch(error => {
+    console.error(error)
+    ElMessage.error('删除失败，请重试')
+  })
 }
 
-function scrollToBottom() {
-  const container = document.querySelector('.messages')
-  if (container) {
-    container.scrollTop = container.scrollHeight
+function confirmRename() {
+  if (!renameThread.value) {
+    showRenameDialog.value = false
+    newTitle.value = ''
+    return
   }
+
+  const thread = renameThread.value
+  const title = newTitle.value.trim()
+  showRenameDialog.value = false
+  renameThread.value = null
+  newTitle.value = ''
+
+  if (!title) {
+    return
+  }
+
+  request.post('/history_conversation/edit', {
+    thread_id: thread.thread_id,
+    title
+  }).then(() => {
+    thread.title = title
+    fetchSessions()
+    ElMessage.success('重命名成功')
+  }).catch(error => {
+    console.error(error)
+    ElMessage.error('重命名失败，请重试')
+  })
 }
 
 async function sendMessage() {
@@ -226,8 +299,8 @@ async function sendMessage() {
   const aiMsg = {
     id: `ai-${Date.now()}`,
     role: 'assistant',
-    content: '',
-    html: ''
+    content: 'AI回答中',
+    html: renderMarkdown('AI回答中')
   }
   messages.value.push(aiMsg)
   const aiIndex = messages.value.length - 1
@@ -255,7 +328,7 @@ async function sendMessage() {
         content: newContent,
         html: renderMarkdown(newContent)
       }
-      messages.value[aiIndex] = updatedMsg
+      messages.value.splice(aiIndex, 1, updatedMsg)
 
       // 关键：等 DOM 更新后高亮
       await nextTick()
@@ -270,7 +343,7 @@ async function sendMessage() {
         content: newContent,
         html: renderMarkdown(newContent)
       }
-      messages.value[aiIndex] = updatedMsg
+      messages.value.splice(aiIndex, 1, updatedMsg)
 
       await nextTick()
       hljs.highlightAll()
@@ -423,6 +496,7 @@ onMounted(() => {
   text-overflow: ellipsis;
   font-weight: 500;
 }
+
 
 .thread-actions .icon-btn {
   background: transparent;
@@ -661,5 +735,90 @@ onMounted(() => {
 
 .dropdown-item.delete-item:hover {
   background: #fee2e2;
+}
+
+/* ========== 模态对话框 ========== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-content h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.modal-content p {
+  margin: 0 0 20px 0;
+  color: #64748b;
+}
+
+.title-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+}
+
+.title-input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cancel-btn, .confirm-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cancel-btn {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.cancel-btn:hover {
+  background: #e2e8f0;
+}
+
+.confirm-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.confirm-btn:hover {
+  background: #2563eb;
 }
 </style>

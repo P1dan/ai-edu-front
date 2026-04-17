@@ -38,9 +38,9 @@
 import { ref, computed } from 'vue'
 import { ChatDotRound, MagicStick, Guide, Document } from '@element-plus/icons-vue'
 import ChatAgent from '../agents/chat.vue'
-import RecommendAgent from '../agents/recommend.vue'
 import LearningPlanAgent from '../agents/learningplan.vue'
 import PptAgent from '../agents/ppt.vue'
+import PersonalizedPractice from '../agents/PersonalizedPractice.vue'
 
 const currentAgentId = ref('qa')
 
@@ -54,10 +54,10 @@ const agents = [
   },
   {
     id: 'recommend',
-    title: '个性化推荐',
-    description: '基于学习画像推荐课程与练习内容。',
+    title: '个性化练习',
+    description: '基于学习画像生成个性化的练习题',
     icon: MagicStick,
-    component: RecommendAgent
+    component: PersonalizedPractice
   },
   {
     id: 'learningplan',

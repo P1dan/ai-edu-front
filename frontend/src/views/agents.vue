@@ -41,6 +41,7 @@ import ChatAgent from '../agents/chat.vue'
 import LearningPlanAgent from '../agents/learningplan.vue'
 import PptAgent from '../agents/ppt.vue'
 import PersonalizedPractice from '../agents/PersonalizedPractice.vue'
+import TextSortingAgent from '../agents/text_sorting.vue'
 
 const currentAgentId = ref('qa')
 
@@ -67,11 +68,11 @@ const agents = [
     component: LearningPlanAgent
   },
   {
-    id: 'ppt',
-    title: 'AI PPT 生成',
-    description: '自动生成教学或汇报所需幻灯片内容。',
+    id: 'text_sorting',
+    title: '文本梳理',
+    description: '智能梳理文件内容',
     icon: Document,
-    component: PptAgent
+    component: TextSortingAgent
   }
 ]
 

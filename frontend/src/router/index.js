@@ -4,6 +4,7 @@ import index from '../views/index.vue'
 import agents from '../views/agents.vue'
 import login from '../views/login.vue'
 import settings from '../views/settings.vue'
+import testindex from '../views/RecommendPage.vue'
 
 const routes = [
   {
@@ -29,6 +30,11 @@ const routes = [
   {
     path: '/settings',
     component: settings,
+    meta: { hideNavbar: false }
+  },
+    {
+    path: '/test',
+    component: testindex,
     meta: { hideNavbar: false }
   }
 

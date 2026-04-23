@@ -1,36 +1,38 @@
 <template>
-  <div class="rec-panel">
+  <div class="rec-right">
     <div class="right-header">
-      <h3>专属课程列表</h3>
-      <span class="user-chip">学号 {{ userId }}</span>
+      <h3>⭐ 专属课程列表</h3>
+      <span class="user-chip">{{ `学号 ${userId}` }}</span>
     </div>
 
     <!-- 加载状态 -->
-    <div v-if="recState === 'loading'" class="loading-state">
+    <div v-if="loading" class="loading-state">
       <div class="small-spinner"></div>
       <p>正在推荐…</p>
+      <p style="font-size:0.8rem; margin-top:8px;"></p>
     </div>
 
     <!-- 错误状态 -->
-    <div v-else-if="recState === 'error'" class="error-state">
-      <span class="error-icon">⚠️</span>
-      <p>{{ recErrorMsg }}</p>
-      <button @click="fetchRecommendations">重试</button>
+    <div v-else-if="error" class="error-state">
+      <span style="font-size:32px; margin-bottom:8px;">⚠️</span>
+      <p>{{ error }}</p>
+      <el-button @click="fetchRecommendations">重试</el-button>
     </div>
 
-    <!-- 推荐列表 -->
-    <div v-else-if="recState === 'done'" class="rec-list-container">
+    <!-- 推荐列表容器 -->
+    <div v-else class="rec-list-container">
       <a
         v-for="(item, idx) in recommendations"
-        :key="item.name + idx"
+        :key="idx"
         :href="item.url"
         target="_blank"
         class="rec-item"
+        :style="{ animationDelay: `${idx * 40}ms` }"
       >
         <div class="rank-num">{{ idx + 1 }}</div>
         <div class="rec-info">
           <div class="rec-name" :title="item.name">{{ item.name }}</div>
-          <div class="rec-url">{{ shortUrl(item.url) }}</div>
+          <div class="rec-url">{{ getShortUrl(item.url) }}</div>
         </div>
       </a>
     </div>
@@ -39,207 +41,157 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 
-// 用户ID（可通过 props 传入）
 const props = defineProps({
   userId: {
     type: String,
-    default: 'D202210493'
+    required: true
   }
 })
 
-// 推荐状态
-const recState = ref('loading') // 'loading', 'done', 'error'
-const recErrorMsg = ref('')
+const loading = ref(true)
+const error = ref(null)
 const recommendations = ref([])
+const API_BASE = 'http://localhost:8001'
 
-// 模拟数据（后端未启动时使用）
-const mockRecommendations = [
-  {
-    name: '从零开始学人工智能',
-    url: 'https://www.coursera.org/learn/ai-for-everyone'
-  },
-  {
-    name: 'Python全栈开发实战',
-    url: 'https://www.udemy.com/course/python-full-stack/'
-  },
-  {
-    name: '机器学习基础',
-    url: 'https://www.coursera.org/learn/machine-learning'
-  },
-  {
-    name: '数据结构与算法',
-    url: 'https://leetcode.com/explore/learn/'
-  },
-  {
-    name: 'React前端框架精讲',
-    url: 'https://react.dev/learn'
-  }
-]
-
-// 辅助函数
-const escapeHtml = (str) => {
-  if (!str) return ''
-  return String(str).replace(/[&<>]/g, c => {
-    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;' }
-    return map[c] || c
-  })
-}
-
-const shortUrl = (url) => {
-  if (!url) return '#'
-  try {
-    const urlObj = new URL(url)
-    return urlObj.hostname.replace('www.', '')
-  } catch {
-    return url.length > 35 ? url.substring(0, 33) + '…' : url
-  }
-}
-
-// 获取推荐（优先使用后端，失败则使用模拟数据）
 const fetchRecommendations = async () => {
-  recState.value = 'loading'
-  
-  // 尝试连接后端
+  loading.value = true
+  error.value = null
+  recommendations.value = []
+
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 3000) // 3秒超时
-    
-    const res = await fetch('http://localhost:8001/recommendations', {
+    const res = await fetch(`${API_BASE}/recommendations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: props.userId }),
-      signal: controller.signal
+      body: JSON.stringify({ user_id: props.userId || 'U202242760' })
     })
-    
-    clearTimeout(timeoutId)
-    
+
     if (!res.ok) {
-      throw new Error('后端请求失败')
+      const e = await res.json()
+      throw new Error(e.detail || '推荐服务异常')
     }
-    
+
     const data = await res.json()
-    if (data && data.length > 0) {
-      recommendations.value = data.map(item => ({
-        name: escapeHtml(item.name || '未知课程'),
-        url: escapeHtml(item.url || '#')
-      }))
-      recState.value = 'done'
-      return
+    if (!data || data.length === 0) {
+      throw new Error('暂无推荐课程')
     }
-    throw new Error('无推荐数据')
-  } catch (error) {
-    console.log('使用模拟数据:', error.message)
-    // 后端未启动或请求失败，使用模拟数据
-    setTimeout(() => {
-      recommendations.value = mockRecommendations.map(item => ({
-        name: item.name,
-        url: item.url
-      }))
-      recState.value = 'done'
-    }, 800) // 模拟加载延迟
+
+    recommendations.value = data
+  } catch (e) {
+    error.value = e.message
+    ElMessage.error(e.message)
+  } finally {
+    loading.value = false
   }
 }
 
-// 刷新推荐
-const refresh = () => {
-  fetchRecommendations()
+const getShortUrl = (url) => {
+  return url.length > 35 ? url.substring(0, 33) + '…' : url
 }
 
-// 组件挂载时获取推荐
 onMounted(() => {
   fetchRecommendations()
-})
-
-// 暴露方法给父组件
-defineExpose({
-  refresh,
-  fetchRecommendations
 })
 </script>
 
 <style scoped>
-/* 右侧面板样式 - 简洁版 */
-.rec-panel {
-  background: #fff;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e7eb;
+:root {
+  --primary: #4f6cff;
+  --primary-light: #eef3ff;
+  --primary-dark: #1a4fcc;
+  --bg-page: #f5f9ff;
+  --surface: #ffffff;
+  --border-light: #e0eaf5;
+  --text-main: #1a2c3e;
+  --text-muted: #5e7180;
+  --radius-card: 16px;
+  --radius-element: 10px;
+  --shadow-card: 0 8px 24px rgba(0, 35, 70, 0.08);
+  --shadow-hover: 0 12px 28px rgba(79, 108, 255, 0.12);
+  --transition: all 0.2s ease;
+}
+
+.rec-right {
+  flex: 1;
+  min-width: 280px;
+  max-width: 340px;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  padding: 24px 20px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-width: 260px;
-  max-width: 320px;
 }
 
 .right-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .right-header h3 {
-  font-weight: 600;
-  font-size: 1.1rem;
-  margin: 0;
-  color: #1f2937;
+  font-weight: 650;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .user-chip {
-  background: #f3f4f6;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  color: #4b5563;
-  font-weight: 500;
+  background: var(--primary-light);
+  padding: 4px 12px;
+  border-radius: 40px;
+  font-size: 0.8rem;
+  color: var(--primary-dark);
 }
 
-
-/* 右侧列表区域 */
 .rec-list-container {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;  /* 🔥 关键修复：禁止水平滚动条 */
-  min-height: 280px;
-  max-height: 460px;
+  min-height: 200px;
 }
 
 .rec-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #f9fafb;
+  background: var(--bg-page);
   border-radius: 12px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
   text-decoration: none;
-  color: #1f2937;
+  color: var(--text-main);
   border: 1px solid transparent;
-  transition: all 0.2s ease;
+  transition: var(--transition);
+  animation: fadeSlide 0.25s;
 }
 
 .rec-item:hover {
-  border-color: #3b82f6;
-  background: #fff;
-  transform: translateX(2px);
+  border-color: var(--primary);
+  background: white;
+  box-shadow: var(--shadow-hover);
+}
+
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .rank-num {
-  width: 32px;
-  height: 32px;
-  background: #3b82f6;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  background: var(--primary);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   color: white;
-  flex-shrink: 0;
-  font-size: 0.9rem;
 }
 
 .rec-info {
@@ -248,103 +200,50 @@ defineExpose({
 }
 
 .rec-name {
-  font-weight: 600;
+  font-weight: 650;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.9rem;
 }
 
 .rec-url {
   font-size: 0.7rem;
-  color: #6b7280;
-  margin-top: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--text-muted);
 }
 
-/* 加载状态 */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 20px;
-  text-align: center;
-  color: #6b7280;
-}
-
-.small-spinner {
-  width: 28px;
-  height: 28px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 12px;
-}
-
-/* 错误状态 */
+.loading-state,
 .error-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 20px;
+  padding: 40px 20px;
   text-align: center;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
-.error-icon {
-  font-size: 28px;
-  margin-bottom: 8px;
-}
-
-.error-state button {
-  margin-top: 16px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  padding: 6px 18px;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.85rem;
-  color: #3b82f6;
-}
-
-.error-state button:hover {
-  border-color: #3b82f6;
-  background: #eff6ff;
+.small-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-/* 滚动条样式 */
-.rec-list-container::-webkit-scrollbar {
-  width: 4px;
+.error-state :deep(.el-button) {
+  margin-top: 16px;
+  border-radius: 40px;
 }
 
-.rec-list-container::-webkit-scrollbar-track {
-  background: #f3f4f6;
-  border-radius: 2px;
-}
-
-.rec-list-container::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 2px;
-}
-
-/* 响应式 */
-@media (max-width: 768px) {
-  .rec-panel {
-    min-width: auto;
-    max-width: none;
-    padding: 16px;
+@media (max-width: 900px) {
+  .rec-right {
+    max-width: 100%;
   }
 }
 </style>

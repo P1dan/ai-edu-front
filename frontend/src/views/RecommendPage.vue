@@ -53,7 +53,7 @@ const props = defineProps({
 const loading = ref(true)
 const error = ref(null)
 const recommendations = ref([])
-const API_BASE = 'http://localhost:8001'
+const API_BASE = 'http://localhost:8000'
 
 const fetchRecommendations = async () => {
   loading.value = true

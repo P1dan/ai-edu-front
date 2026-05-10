@@ -36,12 +36,12 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ChatDotRound, MagicStick, Guide, Document } from '@element-plus/icons-vue'
+import { ChatDotRound, MagicStick, Guide, Document, Memo} from '@element-plus/icons-vue'
 import ChatAgent from '../agents/chat.vue'
 import LearningPlanAgent from '../agents/learningplan.vue'
-import PptAgent from '../agents/ppt.vue'
 import PersonalizedPractice from '../agents/PersonalizedPractice.vue'
 import TextSortingAgent from '../agents/text_sorting.vue'
+import LessonPlanAgent from '../agents/lesson_plan.vue'
 
 const currentAgentId = ref('qa')
 
@@ -73,6 +73,13 @@ const agents = [
     description: '智能梳理文件内容',
     icon: Document,
     component: TextSortingAgent
+  },
+  {
+    id: 'lesson_plan',
+    title: '教案生成',
+    description: '教案计划生成智能体',
+    icon: Memo,
+    component: LessonPlanAgent
   }
 ]
 

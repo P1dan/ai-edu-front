@@ -5,7 +5,7 @@
         <h1>欢迎来到AI教育智能体</h1>
         <p>智能推荐学习内容，实时消息提醒，助你高效完成学习任务。</p>
       </div>
-      <router-link to="/chat" class="primary-button">开始与AI助手对话</router-link>
+      <router-link to="/agents" class="primary-button">开始与AI助手对话</router-link>
     </section>
 
     <section class="cards-row">
@@ -42,7 +42,7 @@
           <h3>AI助教陪练</h3>
           <p>一对一智能问答，帮助你快速理解知识点，巩固学习成果。</p>
         </div>
-        <router-link to="/chat">前往体验</router-link>
+        <router-link to="/agents">前往体验</router-link>
       </div>
     </section>
   </div>

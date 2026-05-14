@@ -36,12 +36,13 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ChatDotRound, MagicStick, Guide, Document, Memo} from '@element-plus/icons-vue'
+import { ChatDotRound, MagicStick, Guide, Document, Memo, EditPen } from '@element-plus/icons-vue'
 import ChatAgent from '../agents/chat.vue'
 import LearningPlanAgent from '../agents/learningplan.vue'
 import PersonalizedPractice from '../agents/PersonalizedPractice.vue'
 import TextSortingAgent from '../agents/text_sorting.vue'
 import LessonPlanAgent from '../agents/lesson_plan.vue'
+import HomeworkCorrectionAgent from '../agents/homework_correction.vue'
 
 const currentAgentId = ref('qa')
 
@@ -80,6 +81,13 @@ const agents = [
     description: '教案计划生成智能体',
     icon: Memo,
     component: LessonPlanAgent
+  },
+  {
+    id: 'homework_correction',
+    title: '作业批改',
+    description: '批改作业，提供反馈和建议',
+    icon: EditPen,
+    component: HomeworkCorrectionAgent
   }
 ]
 

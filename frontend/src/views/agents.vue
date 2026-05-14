@@ -42,7 +42,7 @@ import LearningPlanAgent from '../agents/learningplan.vue'
 import PersonalizedPractice from '../agents/PersonalizedPractice.vue'
 import TextSortingAgent from '../agents/text_sorting.vue'
 import LessonPlanAgent from '../agents/lesson_plan.vue'
-import HomeworkCorrectionAgent from '../agents/homework_correction.vue'
+import HomeworkCorrectionAgent from '../agents/Homework_Correction.vue'
 
 const currentAgentId = ref('qa')
 
